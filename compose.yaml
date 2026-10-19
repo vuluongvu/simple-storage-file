@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: skeleton-app
+    container_name: skeleton-app # rename this
     command: npm run start:dev
     ports:
       - '3001:3000'
@@ -20,7 +20,7 @@ services:
 
   mysql:
     image: mysql:8.4
-    container_name: skeleton-mysql
+    container_name: skeleton-mysql # rename this
     ports:
       - '3311:3306'
     environment:
@@ -29,7 +29,7 @@ services:
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - skeleton_mysql_data:/var/lib/mysql
+      - skeleton_mysql_data:/var/lib/mysql # rename this
     healthcheck:
       test:
         - CMD-SHELL
@@ -40,4 +40,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  skeleton_mysql_data:
+  skeleton_mysql_data: # rename this
