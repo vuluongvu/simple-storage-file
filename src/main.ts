@@ -34,8 +34,12 @@ async function bootstrap() {
 
   // enable CORS
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(',')
+      : ['http://localhost:4200'],
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // use global interceptor for class serialization
@@ -44,7 +48,9 @@ async function bootstrap() {
   // setup swagger documentation at /api/docs
   const config = new DocumentBuilder()
     .setTitle('Simple File Storage API')
-    .setDescription('Backend REST API for Simple File Storage with JWT auth, file management, access control, and sharing')
+    .setDescription(
+      'Backend REST API for Simple File Storage with JWT auth, file management, access control, and sharing',
+    )
     .setVersion('1.0')
     .addBearerAuth(
       {
