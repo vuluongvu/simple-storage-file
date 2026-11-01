@@ -58,6 +58,7 @@ export class FilesService {
 
     const qb = this.fileRepository
       .createQueryBuilder('file')
+      .leftJoinAndSelect('file.folder', 'folder')
       .where('file.user_id = :userId', { userId });
 
     if (query.search) {
@@ -115,7 +116,7 @@ export class FilesService {
   async getFileDetails(fileId: number, userId: number): Promise<FileEntity> {
     const file = await this.fileRepository.findOne({
       where: { id: fileId },
-      relations: { user: true },
+      relations: { user: true, folder: true },
     });
 
     if (!file) {
