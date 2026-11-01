@@ -1,114 +1,222 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Simple File Storage API - Backend Service
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Hệ thống Backend RESTful API cho ứng dụng lưu trữ và chia sẻ file cá nhân tương tự Google Drive phiên bản tinh gọn, xây dựng trên nền tảng **NestJS**, **MySQL 8.4**, **TypeORM**, **JWT Authentication**, và thiết kế trừu tượng sẵn sàng cho **AWS S3**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 1. Công nghệ & Thư viện sử dụng
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **Framework**: NestJS 12 (Express, TypeScript ESM)
+- **Database & ORM**: MySQL 8.4, TypeORM với cơ chế Migration
+- **Authentication**: Passport JWT, bcrypt password hashing
+- **File Storage**: Trừu tượng hóa Storage Service (`LocalStorageService` và `S3StorageService` chuẩn bị cho AWS S3 với AWS SDK v3)
+- **API Documentation**: Swagger UI (`/api/docs`)
+- **Validation & Security**: `class-validator`, `class-transformer`, `helmet`, rate-limiting (`@nestjs/throttler`), secure path sanitization, cryptographically secure tokens (`crypto.randomBytes`)
+- **Testing**: Vitest (Unit tests & E2E integration tests)
+- **Containerization**: Dockerfile & Docker Compose
 
-## Project setup
+---
 
-```bash
-$ npm install
+## 2. Kiến trúc & Cấu trúc thư mục
+
+```text
+storage-service-api/
+├── src/
+│   ├── main.ts                           # Khởi tạo NestJS, prefix /api, Swagger, Helmet, Validation
+│   ├── app.module.ts                     # Module gốc, cấu hình Config, TypeORM, Throttler, Interceptors
+│   ├── common/
+│   │   ├── decorators/                   # @CurrentUser, @Public, @Roles
+│   │   ├── enums/                        # FileVisibility, SharePermission, Role
+│   │   ├── exception-filters/            # AllExceptionsFilter (chuẩn hóa lỗi HTTP)
+│   │   ├── interceptors/                 # TransformInterceptor (StreamableFile aware), LoggingInterceptor
+│   │   ├── middleware/                   # RequestIdMiddleware
+│   │   └── utils/                        # hash.util.ts (bcrypt)
+│   ├── config/
+│   │   └── data-source.ts                # TypeORM DataSource cho CLI Migration
+│   ├── database/
+│   │   └── migrations/                   # Các file TypeORM migrations
+│   ├── storage/
+│   │   ├── interfaces/                   # StorageService interface & upload/download types
+│   │   ├── local-storage.service.ts      # Lưu trữ local an toàn, chống path traversal
+│   │   ├── s3-storage.service.ts         # Triển khai AWS S3 với @aws-sdk/client-s3 & presigner
+│   │   ├── storage.constants.ts          # STORAGE_SERVICE injection token
+│   │   └── storage.module.ts             # StorageModule xuất STORAGE_SERVICE theo driver (local/s3)
+│   ├── auth/                             # Đăng ký, đăng nhập, JWT, /api/auth/*
+│   ├── users/                            # Quản lý profile, tìm kiếm email, /api/users/*
+│   ├── files/                            # Upload, tải về, xem chi tiết, xoá, visibility, /api/files/*
+│   ├── file-shares/                      # Chia sẻ file qua email, phân quyền VIEW/DOWNLOAD, /api/files/:id/shares
+│   └── share-links/                      # Tạo public link với token ngẫu nhiên, /api/public/files/*
+├── test/
+│   └── app.e2e-spec.ts                   # 28 bài test E2E kiểm thử toàn bộ luồng nghiệp vụ
+├── compose.yaml                          # Docker Compose cho app & MySQL 8.4
+├── Dockerfile                            # Image build production
+├── .env.example                          # Mẫu cấu hình môi trường
+└── README.md                             # Tài liệu hướng dẫn
 ```
 
-## Compile and run the project
+---
 
-```bash
-# development
-$ npm run start
+## 3. Database Schema
 
-# watch mode
-$ npm run start:dev
+```mermaid
+erDiagram
+    USERS ||--o{ FILES : owns
+    USERS ||--o{ FILE_SHARES : "shared with"
+    FILES ||--o{ FILE_SHARES : "has shares"
+    FILES ||--o{ SHARE_LINKS : "has public links"
 
-# production mode
-$ npm run start:prod
+    USERS {
+        int id PK
+        string email UK
+        string password
+        string full_name
+        string username UK
+        enum role "USER | ADMIN"
+        datetime created_at
+        datetime updated_at
+    }
+
+    FILES {
+        int id PK
+        int user_id FK
+        string original_name
+        string storage_key UK
+        string mime_type
+        bigint size
+        enum visibility "PRIVATE | SHARED | PUBLIC"
+        datetime created_at
+        datetime updated_at
+    }
+
+    FILE_SHARES {
+        int id PK
+        int file_id FK
+        int shared_with_user_id FK
+        enum permission "VIEW | DOWNLOAD"
+        datetime created_at
+        datetime updated_at
+    }
+
+    SHARE_LINKS {
+        int id PK
+        int file_id FK
+        string token UK
+        boolean is_active
+        datetime expires_at
+        datetime created_at
+    }
 ```
 
-## Run tests
+---
 
+## 4. Danh sách API (Prefix `/api`)
+
+### 4.1. Authentication
+| Method | Endpoint | Quyền | Mô tả |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | Public | Đăng ký tài khoản mới (`email`, `password`, `fullName`) |
+| `POST` | `/api/auth/login` | Public | Đăng nhập nhận JWT access token (`email`, `password`) |
+| `GET` | `/api/auth/me` | Bearer Token | Lấy thông tin user đăng nhập hiện tại |
+
+### 4.2. Users
+| Method | Endpoint | Quyền | Mô tả |
+|---|---|---|---|
+| `GET` | `/api/users/me` | Bearer Token | Lấy hồ sơ cá nhân |
+| `PATCH` | `/api/users/me` | Bearer Token | Cập nhật thông tin cá nhân cơ bản (`fullName`) |
+| `GET` | `/api/users/search?email=` | Bearer Token | Tìm kiếm người dùng theo email để phục vụ chia sẻ file |
+
+### 4.3. Files
+| Method | Endpoint | Quyền | Mô tả |
+|---|---|---|---|
+| `POST` | `/api/files/upload` | Bearer Token | Upload file (multipart/form-data, max 50MB) |
+| `GET` | `/api/files` | Bearer Token | Danh sách file của user (hỗ trợ search, filter visibility, pagination, thống kê tổng số file & dung lượng) |
+| `GET` | `/api/files/:id` | Bearer Token | Lấy chi tiết file (kiểm tra quyền sở hữu, chia sẻ hoặc file public) |
+| `GET` | `/api/files/:id/download` | Bearer Token | Tải file (chỉ cho phép chủ sở hữu hoặc người được cấp quyền DOWNLOAD) |
+| `DELETE` | `/api/files/:id` | Bearer Token | Xóa file khỏi hệ thống (chỉ chủ sở hữu, tự động xóa cascading shares và links) |
+| `PATCH` | `/api/files/:id/visibility` | Bearer Token | Cập nhật chế độ hiển thị file (`PRIVATE`, `SHARED`, `PUBLIC`) |
+
+### 4.4. File Sharing
+| Method | Endpoint | Quyền | Mô tả |
+|---|---|---|---|
+| `POST` | `/api/files/:id/shares` | Bearer Token | Chia sẻ file với người dùng khác qua email (quyền `VIEW` hoặc `DOWNLOAD`) |
+| `GET` | `/api/files/:id/shares` | Bearer Token | Lấy danh sách người được chia sẻ file |
+| `PATCH` | `/api/files/:id/shares/:shareId` | Bearer Token | Cập nhật quyền chia sẻ (`VIEW` / `DOWNLOAD`) |
+| `DELETE` | `/api/files/:id/shares/:shareId` | Bearer Token | Thu hồi quyền chia sẻ |
+| `GET` | `/api/files/shared-with-me` | Bearer Token | Danh sách file người khác chia sẻ với tôi kèm quyền |
+| `GET` | `/api/files/shared-by-me` | Bearer Token | Danh sách file tôi đã chia sẻ cho người khác |
+
+### 4.5. Public Share Links
+| Method | Endpoint | Quyền | Mô tả |
+|---|---|---|---|
+| `POST` | `/api/files/:id/share-links` | Bearer Token | Tạo link chia sẻ công khai với token ngẫu nhiên bảo mật và thời hạn tuỳ chọn |
+| `GET` | `/api/files/:id/share-links` | Bearer Token | Xem danh sách các share links của file |
+| `DELETE` | `/api/files/:id/share-links/:linkId` | Bearer Token | Vô hiệu hoá / thu hồi share link |
+| `GET` | `/api/public/files/:token` | **Public** | Xem thông tin file qua token công khai (không cần đăng nhập) |
+| `GET` | `/api/public/files/:token/download` | **Public** | Tải file qua token công khai (không cần đăng nhập) |
+
+---
+
+## 5. Hướng dẫn khởi chạy dự án
+
+### Cách 1: Khởi chạy bằng Docker Compose (Khuyên dùng)
+
+1. Sao chép file môi trường:
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+cp .env.example .env
+```
+2. Khởi chạy toàn bộ hệ thống (App + MySQL 8.4):
+```bash
+docker compose up -d
+```
+3. Truy cập Swagger UI tại:
+```text
+http://localhost:3000/api/docs
 ```
 
-## Deployment
+### Cách 2: Chạy trực tiếp trên máy Host
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+1. Khởi chạy container MySQL:
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+docker compose up mysql -d
+```
+2. Cài đặt dependencies:
+```bash
+npm install
+```
+3. Chạy Migration tạo bảng dữ liệu:
+```bash
+npm run migration:run
+```
+4. Khởi chạy server ở chế độ phát triển:
+```bash
+npm run start:dev
+```
+5. Mở trình duyệt xem tài liệu API Swagger:
+```text
+http://localhost:3000/api/docs
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Observability
+## 6. Kiểm thử tự động (Testing)
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+Dự án có bộ test suite đầy đủ bao gồm **Unit Tests** và **Integration E2E Tests**:
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+```bash
+# 1. Chạy toàn bộ Unit Tests (48 tests)
+npm run test
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+# 2. Chạy toàn bộ E2E Tests trên database thực tế (28 tests)
+npm run test:e2e
+```
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+**Tiêu chí kiểm thử đã đạt 100%:**
+- Đăng ký, đăng nhập và cấp phát JWT token.
+- Bảo vệ các API yêu cầu đăng nhập.
+- Upload file lên local storage an toàn, lưu metadata vào MySQL.
+- Download file bằng StreamableFile với đầy đủ Content-Disposition và Mime-type.
+- Ngăn chặn truy cập trái phép vào file PRIVATE.
+- Chia sẻ file qua email và phân biệt quyền VIEW / DOWNLOAD.
+- Tạo public share link với token khó đoán 64 ký tự hex.
+- Kiểm tra trạng thái kích hoạt và thời hạn của public link.
+- Xóa file vật lý và cascade xóa toàn bộ shares / share links trong MySQL.

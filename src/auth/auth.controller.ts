@@ -1,37 +1,42 @@
-import { Body, Controller, Get, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
 import { Public } from './decorators/public.decorator.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
-import { ChangePasswordDto } from './dto/change-password.dto.js';
+import type { AuthenticatedUser } from './strategies/jwt.strategy.js';
 
+@ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Public() // public method
+  @Public()
   @Post('register')
+  @ApiOperation({ summary: 'Register a new user account' })
+  @ApiResponse({ status: 201, description: 'User successfully registered' })
+  @ApiResponse({ status: 409, description: 'Email already registered' })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
-  @Public() // public method
+  @Public()
   @Post('login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Authenticate user and get JWT access token' })
+  @ApiResponse({ status: 200, description: 'User authenticated successfully' })
+  @ApiResponse({ status: 401, description: 'Invalid email or password' })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
 
   @Get('me')
-  getProfile(@CurrentUser() user: { userId: number; username: string }) {
-    return user;
-  }
-
-  @Patch('change-password')
-  changePassword(
-    @CurrentUser() user: { userId: number },
-    @Body() dto: ChangePasswordDto,
-  ) {
-    return this.authService.changePassword(user.userId, dto);
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Get current authenticated user profile' })
+  @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  getProfile(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.getProfile(user.userId);
   }
 }

@@ -4,9 +4,14 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 export interface JwtPayload {
-  // payload data type
   sub: number;
-  username: string;
+  email: string;
+  role: string;
+}
+
+export interface AuthenticatedUser {
+  userId: number;
+  email: string;
   role: string;
 }
 
@@ -14,17 +19,16 @@ export interface JwtPayload {
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(config: ConfigService) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(), // extract token from header of Authorization
-      ignoreExpiration: false, // enable checking expriration
-      secretOrKey: config.getOrThrow<string>('JWT_SECRET'), // get secret key
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: config.getOrThrow<string>('JWT_SECRET'),
     });
   }
 
-  // get data from token to use in application because payload has already done before calling this function
-  async validate(payload: JwtPayload) {
+  async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     return {
       userId: payload.sub,
-      username: payload.username,
+      email: payload.email,
       role: payload.role,
     };
   }

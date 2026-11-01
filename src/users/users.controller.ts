@@ -1,24 +1,45 @@
-import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Query,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service.js';
-import { CreateUserDto } from './dto/create-user.dto.js';
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { SearchUserDto } from './dto/search-user.dto.js';
 
+@ApiTags('Users')
+@ApiBearerAuth('bearer')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
-  create(@Body() dto: CreateUserDto) {
-    return this.usersService.register(dto);
+  @Get('me')
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
+  async getProfile(@CurrentUser() authUser: AuthenticatedUser) {
+    return this.usersService.findById(authUser.userId);
   }
 
-  @Get(':username')
-  findOne(@Param('username') username: string) {
-    return this.usersService.findOneUser(username);
+  @Patch('me')
+  @ApiOperation({ summary: 'Update current user basic profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  async updateProfile(
+    @CurrentUser() authUser: AuthenticatedUser,
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.usersService.update(authUser.userId, dto);
   }
 
-  @Put(':username')
-  update(@Param('username') username: string, @Body() dto: UpdateUserDto) {
-    return this.usersService.updateUser(username, dto);
+  @Get('search')
+  @ApiOperation({ summary: 'Search users by email for file sharing' })
+  @ApiQuery({ name: 'email', required: true, description: 'Email address substring' })
+  @ApiResponse({ status: 200, description: 'List of matching users' })
+  async searchByEmail(@Query() query: SearchUserDto) {
+    return this.usersService.searchByEmail(query.email);
   }
 }

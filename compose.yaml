@@ -1,18 +1,24 @@
 services:
   app:
     build: .
-    container_name: storage-online-app # rename this
-    command: npm run start:dev
+    container_name: storage-service-app
     ports:
-      - '3001:3000'
+      - '3000:3000'
     environment:
+      PORT: 3000
+      NODE_ENV: development
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: ${JWT_EXPIRATION}
+      DB_USERNAME: ${DB_USERNAME:-storage_user}
+      DB_PASSWORD: ${DB_PASSWORD:-storage_password}
+      DB_NAME: ${DB_NAME:-storage_online}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_secure_password}
+      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_key_with_at_least_32_characters_123456}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-24h}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      UPLOAD_DIR: ./uploads
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       mysql:
         condition: service_healthy
@@ -20,24 +26,26 @@ services:
 
   mysql:
     image: mysql:8.4
-    container_name: storage-online-mysql # rename this
+    container_name: storage-service-mysql
     ports:
-      - '3311:3306'
+      - '3306:3306'
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_secure_password}
+      MYSQL_DATABASE: ${DB_NAME:-storage_online}
+      MYSQL_USER: ${DB_USERNAME:-storage_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-storage_password}
     volumes:
-      - storage-online_mysql_data:/var/lib/mysql # rename this
+      - storage_mysql_data:/var/lib/mysql
     healthcheck:
       test:
         - CMD-SHELL
         - 'mysqladmin ping -h 127.0.0.1 -uroot -p"$${MYSQL_ROOT_PASSWORD}" --silent'
       interval: 5s
       timeout: 5s
-      retries: 15
+      retries: 20
+      start_period: 10s
     restart: unless-stopped
 
 volumes:
-  storage-online_mysql_data: # rename this
+  storage_mysql_data:
+  uploads_data:

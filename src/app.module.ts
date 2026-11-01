@@ -1,27 +1,38 @@
 import { MiddlewareConsumer, Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import Joi from 'joi';
+
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { UsersModule } from './users/users.module.js';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module.js';
-import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
-import { AllExceptionsFilter } from './common/exception-filters/all-exceptions-filter.filter.js';
-import { RequestMiddleware } from './common/middleware/request-id.middleware.js';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { StorageModule } from './storage/storage.module.js';
+import { FilesModule } from './files/files.module.js';
+import { FileSharesModule } from './file-shares/file-shares.module.js';
+import { ShareLinksModule } from './share-links/share-links.module.js';
+
+import { User } from './users/entities/user.entity.js';
+import { FileEntity } from './files/entities/file.entity.js';
+import { FileShareEntity } from './file-shares/entities/file-share.entity.js';
+import { ShareLinkEntity } from './share-links/entities/share-link.entity.js';
+
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from './auth/guards/roles.guard.js';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor.js';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor.js';
-import Joi from 'joi';
+import { AllExceptionsFilter } from './common/exception-filters/all-exceptions-filter.filter.js';
+import { RequestMiddleware } from './common/middleware/request-id.middleware.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-
-      // Validation schema for environment variables
       validationSchema: Joi.object({
+        PORT: Joi.number().default(3000),
+        NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
         DB_HOST: Joi.string().required(),
         DB_PORT: Joi.number().port().required(),
         DB_USERNAME: Joi.string().required(),
@@ -29,17 +40,22 @@ import Joi from 'joi';
         DB_NAME: Joi.string().required(),
         JWT_SECRET: Joi.string().min(32).required(),
         JWT_EXPIRATION: Joi.string().default('24h').required(),
+        UPLOAD_DIR: Joi.string().default('./uploads'),
+        STORAGE_DRIVER: Joi.string().valid('local', 's3').default('local'),
+        MAX_FILE_SIZE_MB: Joi.number().default(50),
+        AWS_REGION: Joi.string().allow('').optional(),
+        AWS_BUCKET_NAME: Joi.string().allow('').optional(),
+        AWS_ACCESS_KEY_ID: Joi.string().allow('').optional(),
+        AWS_SECRET_ACCESS_KEY: Joi.string().allow('').optional(),
       }),
     }),
 
-    // ThrottlerModule for rate limiting
     ThrottlerModule.forRoot([
       {
         ttl: 60_000,
-        limit: 3, // 10 requests per minute
+        limit: 200, // 200 requests per minute
       },
     ]),
-
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -51,48 +67,42 @@ import Joi from 'joi';
         username: configService.getOrThrow<string>('DB_USERNAME'),
         password: configService.getOrThrow<string>('DB_PASSWORD'),
         database: configService.getOrThrow<string>('DB_NAME'),
+        entities: [User, FileEntity, FileShareEntity, ShareLinkEntity],
         autoLoadEntities: true,
-        synchronize: true, // only for development, set to false in production
+        synchronize: false, // Use migrations instead of synchronize
       }),
     }),
+
+    StorageModule,
     UsersModule,
     AuthModule,
+    FileSharesModule,
+    FilesModule,
+    ShareLinksModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-
-    // 1. Run first: Rate limiting guard
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
-
-    // 2. Run second: JWT authentication guard
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
-
-    // 3. Run third: Roles guard
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
     },
-
-    // 4. Transform format response
     {
       provide: APP_INTERCEPTOR,
       useClass: TransformInterceptor,
     },
-
-    // 5. Logging interceptor: response / request
     {
       provide: APP_INTERCEPTOR,
       useClass: LoggingInterceptor,
     },
-
-    // 6. Global exception filter
     {
       provide: APP_FILTER,
       useClass: AllExceptionsFilter,
@@ -100,8 +110,7 @@ import Joi from 'joi';
   ],
 })
 export class AppModule {
-  // enable middleware for request-id generation
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestMiddleware).forRoutes('*'); // apply to all routes
+    consumer.apply(RequestMiddleware).forRoutes('*');
   }
 }

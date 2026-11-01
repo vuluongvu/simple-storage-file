@@ -1,15 +1,13 @@
 import {
   Injectable,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service.js';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
-import { comparePassword, hashPassword } from '../common/utils/hash.util.js';
+import { comparePassword } from '../common/utils/hash.util.js';
 import { Role } from '../common/enums/role.enum.js';
-import { ChangePasswordDto } from './dto/change-password.dto.js';
 
 @Injectable()
 export class AuthService {
@@ -18,40 +16,55 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  // function: register user account
   async register(dto: RegisterDto) {
-    const user = await this.usersService.register(dto);
-    return this.signToken(user.id, user.username, user.role);
+    const user = await this.usersService.create(dto);
+    const token = await this.signToken(user.id, user.email, user.role);
+    return {
+      message: 'User registered successfully',
+      accessToken: token.accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    };
   }
 
-  // function: login account
   async login(dto: LoginDto) {
-    const user = await this.usersService.findByUsernameWithPassword(
-      dto.username,
-    ); // find account
+    const user = await this.usersService.findByEmailWithPassword(dto.email);
 
     if (!user) {
-      throw new UnauthorizedException('Invalid username or password');
+      throw new UnauthorizedException('Invalid email or password');
     }
 
-    const isMatch = await comparePassword(dto.password, user.password); // check password
-
+    const isMatch = await comparePassword(dto.password, user.password);
     if (!isMatch) {
-      throw new NotFoundException('User not found');
+      throw new UnauthorizedException('Invalid email or password');
     }
 
-    return this.signToken(user.id, user.username, user.role);
+    const token = await this.signToken(user.id, user.email, user.role);
+    return {
+      message: 'Login successful',
+      accessToken: token.accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    };
   }
 
-  // function: sign Token
-  private async signToken(userId: number, username: string, role: Role) {
-    const payload = { sub: userId, username, role };
+  async getProfile(userId: number) {
+    return this.usersService.findById(userId);
+  }
+
+  private async signToken(userId: number, email: string, role: Role) {
+    const payload = { sub: userId, email, role };
     const accessToken = await this.jwtService.signAsync(payload);
     return { accessToken };
-  }
-
-  // function: change password
-  async changePassword(userId: number, dto: ChangePasswordDto) {
-    return this.usersService.changePassword(userId, dto);
   }
 }

@@ -10,14 +10,17 @@ async function bootstrap() {
   // enable global validate pipe
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // remove not allowed fields
-      forbidNonWhitelisted: true, // wrong filed -> return 400
-      transform: true, // convert type (string -> number...)
+      whitelist: true, // remove unallowed fields
+      forbidNonWhitelisted: true, // wrong field -> return 400
+      transform: true, // convert types
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
     }),
   );
 
-  // set global prefix api/v1/...
-  app.setGlobalPrefix('api/v1');
+  // set global prefix to /api as required by specification
+  app.setGlobalPrefix('api');
 
   // enable shutdown hooks for graceful shutdown
   app.enableShutdownHooks();
@@ -36,17 +39,28 @@ async function bootstrap() {
 
   // setup swagger documentation at /api/docs
   const config = new DocumentBuilder()
-    .setTitle('My Backend API')
-    .setDescription('API documentation')
+    .setTitle('Simple File Storage API')
+    .setDescription('Backend REST API for Simple File Storage with JWT auth, file management, access control, and sharing')
     .setVersion('1.0')
-    .addBearerAuth()
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'Authorization',
+        description: 'Enter JWT Bearer token',
+        in: 'header',
+      },
+      'bearer',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  // start the application
-  await app.listen(process.env.PORT ?? 3000);
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+  console.log(`Application is running on port ${port}`);
 }
-// start the application
+
 await bootstrap();
