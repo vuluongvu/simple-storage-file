@@ -13,11 +13,13 @@ import { StorageModule } from './storage/storage.module.js';
 import { FilesModule } from './files/files.module.js';
 import { FileSharesModule } from './file-shares/file-shares.module.js';
 import { ShareLinksModule } from './share-links/share-links.module.js';
+import { FoldersModule } from './folders/folders.module.js';
 
 import { User } from './users/entities/user.entity.js';
 import { FileEntity } from './files/entities/file.entity.js';
 import { FileShareEntity } from './file-shares/entities/file-share.entity.js';
 import { ShareLinkEntity } from './share-links/entities/share-link.entity.js';
+import { FolderEntity } from './folders/entities/folder.entity.js';
 
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from './auth/guards/roles.guard.js';
@@ -67,7 +69,7 @@ import { RequestMiddleware } from './common/middleware/request-id.middleware.js'
         username: configService.getOrThrow<string>('DB_USERNAME'),
         password: configService.getOrThrow<string>('DB_PASSWORD'),
         database: configService.getOrThrow<string>('DB_NAME'),
-        entities: [User, FileEntity, FileShareEntity, ShareLinkEntity],
+        entities: [User, FileEntity, FileShareEntity, ShareLinkEntity, FolderEntity],
         autoLoadEntities: true,
         synchronize: false, // Use migrations instead of synchronize
       }),
@@ -79,6 +81,7 @@ import { RequestMiddleware } from './common/middleware/request-id.middleware.js'
     FileSharesModule,
     FilesModule,
     ShareLinksModule,
+    FoldersModule,
   ],
   controllers: [AppController],
   providers: [

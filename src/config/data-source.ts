@@ -4,6 +4,7 @@ import { User } from '../users/entities/user.entity.js';
 import { FileEntity } from '../files/entities/file.entity.js';
 import { FileShareEntity } from '../file-shares/entities/file-share.entity.js';
 import { ShareLinkEntity } from '../share-links/entities/share-link.entity.js';
+import { FolderEntity } from '../folders/entities/folder.entity.js';
 
 config();
 
@@ -14,7 +15,7 @@ export const dataSourceOptions: DataSourceOptions = {
   username: process.env.DB_USERNAME || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'storage_online',
-  entities: [User, FileEntity, FileShareEntity, ShareLinkEntity],
+  entities: [User, FileEntity, FileShareEntity, ShareLinkEntity, FolderEntity],
   migrations: ['dist/database/migrations/*.js'],
   synchronize: false,
 };

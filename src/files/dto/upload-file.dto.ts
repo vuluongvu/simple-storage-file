@@ -11,4 +11,11 @@ export class UploadFileDto {
   @IsOptional()
   @IsEnum(FileVisibility, { message: 'Visibility must be PRIVATE, SHARED, or PUBLIC' })
   visibility?: FileVisibility;
+
+  @ApiPropertyOptional({
+    description: 'Folder ID to upload the file into',
+    type: Number,
+  })
+  @IsOptional()
+  folderId?: number;
 }

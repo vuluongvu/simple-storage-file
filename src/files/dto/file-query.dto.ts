@@ -14,6 +14,10 @@ export class FileQueryDto {
   @IsEnum(FileVisibility)
   visibility?: FileVisibility;
 
+  @ApiPropertyOptional({ description: 'Filter files by folder ID (pass "root" or "null" for root files)' })
+  @IsOptional()
+  folderId?: string;
+
   @ApiPropertyOptional({ default: 1, minimum: 1, description: 'Page number' })
   @IsOptional()
   @Type(() => Number)

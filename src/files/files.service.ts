@@ -30,6 +30,7 @@ export class FilesService {
     userId: number,
     file?: Express.Multer.File,
     visibility: FileVisibility = FileVisibility.PRIVATE,
+    folderId?: number | null,
   ): Promise<FileEntity> {
     if (!file) {
       throw new BadRequestException('No file provided for upload');
@@ -44,6 +45,7 @@ export class FilesService {
       mimeType: uploadResult.mimeType,
       size: uploadResult.size,
       visibility: visibility || FileVisibility.PRIVATE,
+      folderId: folderId || null,
     });
 
     return this.fileRepository.save(fileEntity);
@@ -68,6 +70,17 @@ export class FilesService {
       qb.andWhere('file.visibility = :visibility', {
         visibility: query.visibility,
       });
+    }
+
+    if (query.folderId !== undefined && query.folderId !== '') {
+      if (query.folderId === 'root' || query.folderId === 'null') {
+        qb.andWhere('file.folder_id IS NULL');
+      } else {
+        const fId = parseInt(query.folderId, 10);
+        if (!isNaN(fId)) {
+          qb.andWhere('file.folder_id = :folderId', { folderId: fId });
+        }
+      }
     }
 
     qb.orderBy('file.created_at', 'DESC')
@@ -237,6 +250,25 @@ export class FilesService {
     }
 
     file.visibility = visibility;
+    return this.fileRepository.save(file);
+  }
+
+  async moveFileToFolder(
+    userId: number,
+    fileId: number,
+    folderId: number | null,
+  ): Promise<FileEntity> {
+    const file = await this.fileRepository.findOne({ where: { id: fileId } });
+
+    if (!file) {
+      throw new NotFoundException(`File with ID ${fileId} not found`);
+    }
+
+    if (file.userId !== userId) {
+      throw new ForbiddenException('Only the file owner can move this file');
+    }
+
+    file.folderId = folderId;
     return this.fileRepository.save(file);
   }
 }

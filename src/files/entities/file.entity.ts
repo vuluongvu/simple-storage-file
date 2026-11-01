@@ -14,6 +14,7 @@ import { User } from '../../users/entities/user.entity.js';
 import { FileVisibility } from '../../common/enums/file-visibility.enum.js';
 import { FileShareEntity } from '../../file-shares/entities/file-share.entity.js';
 import { ShareLinkEntity } from '../../share-links/entities/share-link.entity.js';
+import { FolderEntity } from '../../folders/entities/folder.entity.js';
 
 @Entity('files')
 @Index(['userId', 'createdAt'])
@@ -56,6 +57,17 @@ export class FileEntity {
     default: FileVisibility.PRIVATE,
   })
   visibility: FileVisibility;
+
+  @Index()
+  @Column({ name: 'folder_id', type: 'int', nullable: true })
+  folderId: number | null;
+
+  @ManyToOne(() => FolderEntity, (folder) => folder.files, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'folder_id' })
+  folder: Relation<FolderEntity> | null;
 
   @OneToMany(() => FileShareEntity, (share) => share.file)
   shares: Relation<FileShareEntity[]>;

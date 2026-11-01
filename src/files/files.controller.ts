@@ -72,7 +72,8 @@ export class FilesController {
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: UploadFileDto,
   ) {
-    return this.filesService.uploadFile(user.userId, file, dto.visibility);
+    const folderId = dto.folderId ? Number(dto.folderId) : null;
+    return this.filesService.uploadFile(user.userId, file, dto.visibility, folderId);
   }
 
   @Get()
@@ -167,5 +168,19 @@ export class FilesController {
     @Body() dto: UpdateVisibilityDto,
   ) {
     return this.filesService.updateVisibility(id, user.userId, dto.visibility);
+  }
+
+  @Patch(':id/folder')
+  @ApiOperation({ summary: 'Move file to a folder or root' })
+  @ApiParam({ name: 'id', description: 'File ID' })
+  @ApiResponse({ status: 200, description: 'File moved successfully' })
+  @ApiResponse({ status: 403, description: 'Only owner can move file' })
+  @ApiResponse({ status: 404, description: 'File not found' })
+  async moveFile(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body('folderId') folderId: number | null,
+  ) {
+    return this.filesService.moveFileToFolder(user.userId, id, folderId !== undefined ? folderId : null);
   }
 }
