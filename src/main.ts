@@ -26,7 +26,11 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   // use helmet for security headers
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   // enable CORS
   app.enableCors({
