@@ -183,6 +183,60 @@ describe('FilesService', () => {
     });
   });
 
+  describe('previewFile', () => {
+    it('should allow owner to preview', async () => {
+      mockFileRepo.findOne.mockResolvedValueOnce({
+        id: 1,
+        userId: 1,
+        storageKey: 'key1',
+        visibility: FileVisibility.PRIVATE,
+      });
+
+      const result = await service.previewFile(1, 1);
+      expect(result.stream).toBeDefined();
+    });
+
+    it('should allow shared user with VIEW-only permission to preview', async () => {
+      mockFileRepo.findOne.mockResolvedValueOnce({
+        id: 1,
+        userId: 2,
+        storageKey: 'key1',
+        visibility: FileVisibility.SHARED,
+      });
+      mockShareRepo.findOne.mockResolvedValueOnce({
+        fileId: 1,
+        sharedWithUserId: 1,
+        permission: SharePermission.VIEW,
+      });
+
+      const result = await service.previewFile(1, 1);
+      expect(result.stream).toBeDefined();
+    });
+
+    it('should allow preview for PUBLIC file', async () => {
+      mockFileRepo.findOne.mockResolvedValueOnce({
+        id: 1,
+        userId: 2,
+        storageKey: 'key1',
+        visibility: FileVisibility.PUBLIC,
+      });
+
+      const result = await service.previewFile(1, 1);
+      expect(result.stream).toBeDefined();
+    });
+
+    it('should deny preview to unauthorized user for PRIVATE file', async () => {
+      mockFileRepo.findOne.mockResolvedValueOnce({
+        id: 1,
+        userId: 2,
+        storageKey: 'key1',
+        visibility: FileVisibility.PRIVATE,
+      });
+
+      await expect(service.previewFile(1, 1)).rejects.toThrow(ForbiddenException);
+    });
+  });
+
   describe('deleteFile', () => {
     it('should allow owner to delete file', async () => {
       mockFileRepo.findOne.mockResolvedValueOnce({

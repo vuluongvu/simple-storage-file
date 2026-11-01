@@ -170,6 +170,37 @@ export class FilesService {
     };
   }
 
+  async previewFile(fileId: number, userId: number) {
+    const file = await this.fileRepository.findOne({ where: { id: fileId } });
+
+    if (!file) {
+      throw new NotFoundException(`File with ID ${fileId} not found`);
+    }
+
+    if (file.userId !== userId) {
+      if (file.visibility === FileVisibility.PUBLIC) {
+        // Public allows preview
+      } else if (file.visibility === FileVisibility.SHARED) {
+        const share = await this.fileShareRepository.findOne({
+          where: { fileId, sharedWithUserId: userId },
+        });
+
+        if (!share) {
+          throw new ForbiddenException('You do not have permission to access this file');
+        }
+      } else {
+        throw new ForbiddenException('You do not have permission to access this file');
+      }
+    }
+
+    const downloadResult = await this.storageService.download(file.storageKey);
+
+    return {
+      file,
+      stream: downloadResult.stream,
+    };
+  }
+
   async deleteFile(fileId: number, userId: number): Promise<{ message: string }> {
     const file = await this.fileRepository.findOne({ where: { id: fileId } });
 

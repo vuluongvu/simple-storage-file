@@ -120,6 +120,28 @@ export class FilesController {
     return new StreamableFile(stream as any);
   }
 
+  @Get(':id/preview')
+  @ApiOperation({ summary: 'Preview/stream file inline by ID' })
+  @ApiParam({ name: 'id', description: 'File ID' })
+  @ApiResponse({ status: 200, description: 'File stream inline' })
+  @ApiResponse({ status: 403, description: 'Access denied' })
+  @ApiResponse({ status: 404, description: 'File not found' })
+  async preview(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const { file, stream } = await this.filesService.previewFile(id, user.userId);
+
+    res.set({
+      'Content-Type': file.mimeType || 'application/octet-stream',
+      'Content-Disposition': `inline; filename="${encodeURIComponent(file.originalName)}"`,
+      'Content-Length': file.size.toString(),
+    });
+
+    return new StreamableFile(stream as any);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete file by ID (owner only)' })
   @ApiParam({ name: 'id', description: 'File ID' })
